@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gathering Snapshot</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; background: #f5f5f3; min-height: 100vh; padding: 1rem; }
+    header { text-align: center; padding: 1rem 0 1.25rem; }
+    header h1 { font-size: 18px; font-weight: 500; color: #111; }
+    header p { font-size: 12px; color: #888; margin-top: 3px; }
+    .col-header { font-size: 15px; font-weight: 500; text-align: center; padding: 10px 0 14px; }
+    .age-btn { width: 100%; padding: 10px 8px; margin-bottom: 6px; font-size: 13px; display: flex; align-items: center; justify-content: space-between; border-radius: 8px; border: 0.5px solid #ccc; background: #fff; color: #111; cursor: pointer; transition: background 0.1s; -webkit-tap-highlight-color: transparent; }
+    .age-btn:hover { background: #f0f0ee; }
+    .age-btn:active { transform: scale(0.97); background: #e8e8e5; }
+    .age-btn .label { font-size: 13px; color: #666; }
+    .age-btn .count { font-size: 18px; font-weight: 500; min-width: 28px; text-align: right; }
+    .col-male .count { color: #185FA5; }
+    .col-female .count { color: #993556; }
+    .col-male .age-btn:hover { border-color: #85B7EB; }
+    .col-female .age-btn:hover { border-color: #ED93B1; }
+    .total-card { background: #ebebea; border-radius: 8px; padding: 10px 14px; text-align: center; margin-top: 8px; }
+    .total-label { font-size: 11px; color: #999; text-transform: uppercase; letter-spacing: 0.05em; }
+    .total-num { font-size: 22px; font-weight: 500; }
+    .col-male .total-num { color: #185FA5; }
+    .col-female .total-num { color: #993556; }
+    .grand-total { font-size: 28px; font-weight: 500; color: #111; }
+    .summary-row { display: flex; gap: 8px; font-size: 12px; color: #666; justify-content: center; flex-wrap: wrap; margin-top: 4px; }
+    .summary-pill { background: #ebebea; border-radius: 20px; padding: 3px 10px; }
+    .send-btn { background: #185FA5; border: none; border-radius: 8px; padding: 11px 32px; font-size: 14px; font-weight: 500; color: #fff; cursor: pointer; margin-top: 6px; transition: background 0.15s; }
+    .send-btn:hover { background: #0C447C; }
+    .send-btn:disabled { background: #B5D4F4; cursor: not-allowed; }
+    .reset-btn { background: none; border: 0.5px solid #ccc; border-radius: 8px; padding: 10px 20px; font-size: 13px; color: #666; cursor: pointer; margin-top: 6px; margin-left: 8px; }
+    .reset-btn:hover { background: #f0f0ee; }
+    .undo-btn { background: none; border: none; padding: 0; font-size: 12px; color: #999; cursor: pointer; text-decoration: underline; margin-top: 6px; display: block; text-align: center; }
+    .undo-btn:hover { color: #666; }
+    .session-input { width: 100%; padding: 9px 12px; border: 0.5px solid #ccc; border-radius: 8px; font-size: 14px; background: #fff; color: #111; margin-bottom: 8px; }
+    .session-input:focus { outline: none; border-color: #185FA5; box-shadow: 0 0 0 2px #B5D4F4; }
+    .status { font-size: 12px; text-align: center; margin-top: 8px; min-height: 18px; }
+    .status.ok { color: #0F6E56; }
+    .status.err { color: #A32D2D; }
+    .status.sending { color: #185FA5; }
+    .timer { font-size: 12px; color: #999; text-align: center; margin-top: 4px; }
+    .timer.warn { color: #BA7517; font-weight: 500; }
+    .section-label { font-size: 11px; color: #999; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
+    .card { background: #fff; border-radius: 12px; border: 0.5px solid #e0e0dc; padding: 14px 16px; margin-bottom: 12px; }
+  </style>
+</head>
+<body>
+
+  <div style="max-width: 480px; margin: 0 auto;">
+
+    <header>
+      <h1>Gathering Snapshot</h1>
+      <p>Hourly crowd observer</p>
+    </header>
+
+    <div class="card">
+      <div class="section-label">Session / location</div>
+      <input class="session-input" id="session-label" type="text" placeholder="e.g. Spor10 main space — May 30" />
+      <input class="session-input" id="observer-name" type="text" placeholder="Observer name (optional)" style="margin-bottom:0;" />
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+      <div class="col-male">
+        <div class="col-header" style="color: #185FA5;">♂ Male</div>
+        <div id="male-btns"></div>
+        <div class="total-card">
+          <div class="total-label">Total male</div>
+          <div class="total-num" id="male-total">0</div>
+        </div>
+      </div>
+      <div class="col-female">
+        <div class="col-header" style="color: #993556;">♀ Female</div>
+        <div id="female-btns"></div>
+        <div class="total-card">
+          <div class="total-label">Total female</div>
+          <div class="total-num" id="female-total">0</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="text-align: center;">
+      <div style="font-size: 12px; color: #999; margin-bottom: 2px;">Total observed</div>
+      <div class="grand-total" id="grand-total">0</div>
+      <div class="summary-row" id="summary-row"></div>
+      <div class="timer" id="timer-display"></div>
+      <div style="margin-top: 12px;">
+        <button class="send-btn" id="send-btn" onclick="sendSnapshot()">Send snapshot</button>
+        <button class="reset-btn" onclick="resetAll()">Reset</button>
+      </div>
+      <button class="undo-btn" id="undo-btn" onclick="undo()" style="display:none">↩ Undo last tap</button>
+      <div class="status" id="status"></div>
+    </div>
+
+  </div>
+
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+    import { getFirestore, collection, addDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+    const app = initializeApp({
+      apiKey: "AIzaSyB19EhfnPWGoMeTAHmsdNtJnaJ81U8RjkM",
+      authDomain: "gathering-risom.firebaseapp.com",
+      projectId: "gathering-risom",
+      storageBucket: "gathering-risom.firebasestorage.app",
+      messagingSenderId: "1096186446537",
+      appId: "1:1096186446537:web:8c065abe33535da2240318"
+    });
+    const db = getFirestore(app);
+
+    const ages = ['0–5','6–12','13–17','18–30','31–59','60–75','75+'];
+    const counts = { male: Array(7).fill(0), female: Array(7).fill(0) };
+    let history = [];
+    let lastSent = null;
+    let timerInterval = null;
+
+    function render() {
+      ['male','female'].forEach(g => {
+        const wrap = document.getElementById(g+'-btns');
+        wrap.innerHTML = '';
+        ages.forEach((a,i) => {
+          const b = document.createElement('button');
+          b.className = 'age-btn';
+          b.innerHTML = `<span class="label">${a}</span><span class="count">${counts[g][i]}</span>`;
+          b.onclick = () => tap(g, i);
+          wrap.appendChild(b);
+        });
+        document.getElementById(g+'-total').textContent = counts[g].reduce((s,v)=>s+v,0);
+      });
+      const mT = counts.male.reduce((s,v)=>s+v,0);
+      const fT = counts.female.reduce((s,v)=>s+v,0);
+      const grand = mT + fT;
+      document.getElementById('grand-total').textContent = grand;
+      const sr = document.getElementById('summary-row');
+      if (grand > 0) {
+        const mPct = Math.round(mT/grand*100);
+        sr.innerHTML = `<span class="summary-pill" style="color:#185FA5">${mPct}% male</span><span class="summary-pill" style="color:#993556">${100-mPct}% female</span>`;
+      } else { sr.innerHTML = ''; }
+      document.getElementById('undo-btn').style.display = history.length ? 'block' : 'none';
+    }
+
+    function tap(g, i) {
+      history.push({g, i});
+      if (history.length > 50) history.shift();
+      counts[g][i]++;
+      render();
+    }
+
+    function undo() {
+      if (!history.length) return;
+      const last = history.pop();
+      if (counts[last.g][last.i] > 0) counts[last.g][last.i]--;
+      render();
+    }
+
+    function resetAll() {
+      if (!confirm('Reset all counts?')) return;
+      counts.male = Array(7).fill(0);
+      counts.female = Array(7).fill(0);
+      history = [];
+      setStatus('');
+      render();
+    }
+
+    function setStatus(msg, type='') {
+      const el = document.getElementById('status');
+      el.textContent = msg;
+      el.className = 'status' + (type ? ' '+type : '');
+    }
+
+    function startTimer() {
+      if (timerInterval) clearInterval(timerInterval);
+      lastSent = Date.now();
+      timerInterval = setInterval(() => {
+        const mins = Math.floor((Date.now() - lastSent) / 60000);
+        const el = document.getElementById('timer-display');
+        el.textContent = mins < 50 ? `Last sent ${mins}m ago` : `${mins}m since last snapshot — time to send?`;
+        el.className = mins < 50 ? 'timer' : 'timer warn';
+      }, 30000);
+    }
+
+    window.sendSnapshot = async function() {
+      const label = document.getElementById('session-label').value.trim();
+      if (!label) {
+        setStatus('Please enter a session / location label.', 'err');
+        document.getElementById('session-label').focus();
+        return;
+      }
+      const mT = counts.male.reduce((s,v)=>s+v,0);
+      const fT = counts.female.reduce((s,v)=>s+v,0);
+      if (mT + fT === 0) { setStatus('No counts to send yet.', 'err'); return; }
+      const btn = document.getElementById('send-btn');
+      btn.disabled = true;
+      setStatus('Sending…', 'sending');
+      const keys = ['0-5','6-12','13-17','18-30','31-59','60-75','75+'];
+      const mObj = {}, fObj = {};
+      ages.forEach((a,i) => { mObj[keys[i]] = counts.male[i]; fObj[keys[i]] = counts.female[i]; });
+      try {
+        await addDoc(collection(db, 'snapshots'), {
+          timestamp: new Date().toISOString(),
+          session: label,
+          observer: document.getElementById('observer-name').value.trim() || null,
+          male: mObj,
+          female: fObj,
+          total_male: mT,
+          total_female: fT,
+          total: mT + fT
+        });
+        setStatus('✓ Snapshot saved', 'ok');
+        startTimer();
+        counts.male = Array(7).fill(0);
+        counts.female = Array(7).fill(0);
+        history = [];
+        render();
+      } catch(e) {
+        setStatus('Error: ' + e.message, 'err');
+      }
+      btn.disabled = false;
+    }
+
+    window.undo = undo;
+    window.resetAll = resetAll;
+    render();
+  </script>
+
+</body>
+</html>
