@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gathering Snapshot — Dashboard</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; background: #f5f5f3; min-height: 100vh; padding: 1rem; color: #111; }
+    .center { display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+    .login-card { background: #fff; border-radius: 12px; border: 0.5px solid #e0e0dc; padding: 2rem; width: 100%; max-width: 340px; text-align: center; }
+    .login-card h1 { font-size: 17px; font-weight: 500; margin-bottom: 6px; }
+    .login-card p { font-size: 13px; color: #888; margin-bottom: 1.5rem; }
+    input[type=password] { width: 100%; padding: 10px 12px; border: 0.5px solid #ccc; border-radius: 8px; font-size: 14px; margin-bottom: 10px; text-align: center; letter-spacing: 0.1em; }
+    input[type=password]:focus { outline: none; border-color: #185FA5; box-shadow: 0 0 0 2px #B5D4F4; }
+    .btn { padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; border: none; transition: background 0.15s; }
+    .btn-primary { background: #185FA5; color: #fff; }
+    .btn-primary:hover { background: #0C447C; }
+    .btn-primary:disabled { background: #B5D4F4; cursor: not-allowed; }
+    .btn-outline { background: none; border: 0.5px solid #ccc; color: #666; }
+    .btn-outline:hover { background: #f0f0ee; }
+    .btn-green { background: #1D9E75; color: #fff; }
+    .btn-green:hover { background: #0F6E56; }
+    header { max-width: 800px; margin: 0 auto 1rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+    header h1 { font-size: 18px; font-weight: 500; }
+    header p { font-size: 12px; color: #888; }
+    .filter-bar { max-width: 800px; margin: 0 auto 1rem; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    select { padding: 8px 10px; border: 0.5px solid #ccc; border-radius: 8px; font-size: 13px; background: #fff; color: #111; }
+    select:focus { outline: none; border-color: #185FA5; }
+    .metrics { max-width: 800px; margin: 0 auto 1rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
+    .metric { background: #ebebea; border-radius: 8px; padding: 12px 14px; }
+    .metric-label { font-size: 11px; color: #999; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+    .metric-value { font-size: 24px; font-weight: 500; }
+    .metric-sub { font-size: 11px; color: #888; margin-top: 2px; }
+    .card { background: #fff; border-radius: 12px; border: 0.5px solid #e0e0dc; padding: 16px; max-width: 800px; margin: 0 auto 12px; }
+    .card-title { font-size: 11px; font-weight: 500; color: #999; margin-bottom: 14px; text-transform: uppercase; letter-spacing: 0.05em; }
+    .chart-wrap { position: relative; height: 220px; }
+    .age-bars { display: flex; flex-direction: column; gap: 8px; }
+    .age-row { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+    .age-row .age-label { width: 48px; color: #666; flex-shrink: 0; font-size: 12px; }
+    .age-row .bar-wrap { flex: 1; background: #f0f0ee; border-radius: 4px; height: 20px; overflow: hidden; display: flex; }
+    .bar-m { background: #378ADD; height: 100%; transition: width 0.4s; }
+    .bar-f { background: #D4537E; height: 100%; transition: width 0.4s; }
+    .age-row .age-count { width: 32px; text-align: right; color: #888; font-size: 11px; flex-shrink: 0; }
+    .snaps-list { display: flex; flex-direction: column; gap: 6px; max-height: 260px; overflow-y: auto; }
+    .snap-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; background: #f8f8f6; border-radius: 8px; font-size: 13px; }
+    .snap-time { color: #888; font-size: 11px; }
+    .snap-total { font-weight: 500; font-size: 15px; }
+    .snap-split { font-size: 11px; color: #888; }
+    .snap-session { color: #444; }
+    .status { font-size: 12px; min-height: 18px; }
+    .status.ok { color: #0F6E56; }
+    .status.err { color: #A32D2D; }
+    .status.info { color: #185FA5; }
+    a.back { font-size: 13px; color: #185FA5; text-decoration: none; }
+    a.back:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+<div id="login-screen" class="center">
+  <div class="login-card">
+    <h1>Gathering Snapshot</h1>
+    <p>Enter password to access the dashboard</p>
+    <input type="password" id="pw-input" placeholder="Password" onkeydown="if(event.key==='Enter')login()" />
+    <button class="btn btn-primary" style="width:100%" onclick="login()">Continue</button>
+    <div class="status err" id="login-err" style="margin-top:8px;text-align:center"></div>
+  </div>
+</div>
+
+<div id="dashboard" style="display:none">
+
+  <div style="max-width:800px;margin:0 auto;">
+    <header>
+      <div>
+        <h1>Gathering Snapshot</h1>
+        <p id="last-updated"></p>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button class="btn btn-green" onclick="exportCSV()">↓ Export CSV</button>
+        <button class="btn btn-outline" onclick="logout()">Log out</button>
+        <a class="back" href="index.html">← Counter</a>
+      </div>
+    </header>
+
+    <div class="filter-bar">
+      <select id="session-filter"><option value="">All sessions</option></select>
+      <select id="range-filter">
+        <option value="all">All time</option>
+        <option value="today">Today</option>
+        <option value="week">Last 7 days</option>
+        <option value="month">Last 30 days</option>
+      </select>
+      <div class="status info" id="load-status"></div>
+    </div>
+
+    <div class="metrics">
+      <div class="metric"><div class="metric-label">Total observed</div><div class="metric-value" id="m-total">—</div><div class="metric-sub">across all snapshots</div></div>
+      <div class="metric"><div class="metric-label">Snapshots</div><div class="metric-value" id="m-snaps">—</div><div class="metric-sub">observations sent</div></div>
+      <div class="metric"><div class="metric-label">Avg per snapshot</div><div class="metric-value" id="m-avg">—</div><div class="metric-sub">people counted</div></div>
+      <div class="metric"><div class="metric-label">Peak count</div><div class="metric-value" id="m-peak">—</div><div class="metric-sub" id="m-peak-time"></div></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">People over time</div>
+      <div class="chart-wrap"><canvas id="timeline-chart"></canvas></div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;max-width:800px;margin:0 auto 12px;">
+      <div class="card" style="margin:0">
+        <div class="card-title">Gender split</div>
+        <div class="chart-wrap" style="height:180px"><canvas id="gender-chart"></canvas></div>
+      </div>
+      <div class="card" style="margin:0">
+        <div class="card-title">Age groups</div>
+        <div class="age-bars" id="age-bars"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Recent snapshots</div>
+      <div class="snaps-list" id="snaps-list"></div>
+    </div>
+  </div>
+
+</div>
+
+<script type="module">
+  import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+  import { getFirestore, collection, getDocs, orderBy, query } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+  const app = initializeApp({
+    apiKey: "AIzaSyB19EhfnPWGoMeTAHmsdNtJnaJ81U8RjkM",
+    authDomain: "gathering-risom.firebaseapp.com",
+    projectId: "gathering-risom",
+    storageBucket: "gathering-risom.firebasestorage.app",
+    messagingSenderId: "1096186446537",
+    appId: "1:1096186446537:web:8c065abe33535da2240318"
+  });
+  const db = getFirestore(app);
+
+  const ageKeys = ['0-5','6-12','13-17','18-30','31-59','60-75','75+'];
+  let allSnaps = [];
+  let timelineChart, genderChart;
+
+  window.login = function() {
+    if (document.getElementById('pw-input').value === 'Spor10') {
+      document.getElementById('login-screen').style.display = 'none';
+      document.getElementById('dashboard').style.display = 'block';
+      loadSnaps();
+    } else {
+      document.getElementById('login-err').textContent = 'Incorrect password';
+    }
+  }
+
+  window.logout = function() {
+    document.getElementById('dashboard').style.display = 'none';
+    document.getElementById('login-screen').style.display = 'flex';
+    document.getElementById('pw-input').value = '';
+  }
+
+  async function loadSnaps() {
+    document.getElementById('load-status').textContent = 'Loading…';
+    document.getElementById('load-status').className = 'status info';
+    const q = query(collection(db, 'snapshots'), orderBy('timestamp', 'asc'));
+    const snap = await getDocs(q);
+    allSnaps = snap.docs.map(d => d.data());
+    const sessions = [...new Set(allSnaps.map(s => s.session).filter(Boolean))];
+    const sel = document.getElementById('session-filter');
+    sessions.forEach(s => {
+      const o = document.createElement('option');
+      o.value = s; o.textContent = s;
+      sel.appendChild(o);
+    });
+    document.getElementById('load-status').textContent = `${allSnaps.length} snapshots loaded`;
+    document.getElementById('load-status').className = 'status ok';
+    render();
+  }
+
+  function filtered() {
+    const session = document.getElementById('session-filter').value;
+    const range = document.getElementById('range-filter').value;
+    const now = Date.now();
+    return allSnaps.filter(s => {
+      if (session && s.session !== session) return false;
+      if (range === 'today') { const d = new Date(s.timestamp), t = new Date(); if (d.toDateString() !== t.toDateString()) return false; }
+      if (range === 'week' && new Date(s.timestamp) < new Date(now - 7*864e5)) return false;
+      if (range === 'month' && new Date(s.timestamp) < new Date(now - 30*864e5)) return false;
+      return true;
+    });
+  }
+
+  function render() {
+    const data = filtered();
+    if (!data.length) {
+      ['m-total','m-snaps','m-avg','m-peak'].forEach(id => document.getElementById(id).textContent = '0');
+      document.getElementById('snaps-list').innerHTML = '<div style="text-align:center;padding:1.5rem;color:#bbb;font-size:13px">No snapshots for this filter</div>';
+      renderTimeline([]); renderGender(0,0); renderAges({});
+      return;
+    }
+    const total = data.reduce((s,d) => s+(d.total||0), 0);
+    const peak = data.reduce((p,d) => d.total > p.total ? d : p, data[0]);
+    document.getElementById('m-total').textContent = total.toLocaleString();
+    document.getElementById('m-snaps').textContent = data.length;
+    document.getElementById('m-avg').textContent = Math.round(total/data.length);
+    document.getElementById('m-peak').textContent = peak.total;
+    document.getElementById('m-peak-time').textContent = fmt(peak.timestamp);
+    document.getElementById('last-updated').textContent = `Last snapshot: ${fmt(data[data.length-1].timestamp)}`;
+    renderTimeline(data);
+    renderGender(
+      data.reduce((s,d) => s+(d.total_male||0), 0),
+      data.reduce((s,d) => s+(d.total_female||0), 0)
+    );
+    const ageTotals = {};
+    ageKeys.forEach(k => { ageTotals[k] = data.reduce((s,d) => s+((d.male&&d.male[k])||0)+((d.female&&d.female[k])||0), 0); });
+    renderAges(ageTotals);
+    const list = document.getElementById('snaps-list');
+    list.innerHTML = '';
+    [...data].reverse().slice(0,30).forEach(d => {
+      const mPct = d.total ? Math.round((d.total_male||0)/d.total*100) : 0;
+      const row = document.createElement('div');
+      row.className = 'snap-row';
+      row.innerHTML = `<div><div class="snap-session">${d.session||'—'}</div><div class="snap-time">${fmt(d.timestamp)}${d.observer?' · '+d.observer:''}</div></div><div style="text-align:right"><div class="snap-total">${d.total} people</div><div class="snap-split"><span style="color:#185FA5">${mPct}% M</span> · <span style="color:#993556">${100-mPct}% F</span></div></div>`;
+      list.appendChild(row);
+    });
+  }
+
+  function renderTimeline(data) {
+    const ctx = document.getElementById('timeline-chart').getContext('2d');
+    if (timelineChart) timelineChart.destroy();
+    timelineChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: data.map(d => fmt(d.timestamp)),
+        datasets: [{ label: 'Total', data: data.map(d => d.total||0), borderColor: '#185FA5', backgroundColor: 'rgba(24,95,165,0.08)', fill: true, tension: 0.3, pointRadius: 3, pointBackgroundColor: '#185FA5' }]
+      },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { font: { size: 11 }, maxRotation: 45, color: '#888' }, grid: { display: false } }, y: { ticks: { font: { size: 11 }, color: '#888' }, grid: { color: '#f0f0ee' }, beginAtZero: true } } }
+    });
+  }
+
+  function renderGender(m, f) {
+    const ctx = document.getElementById('gender-chart').getContext('2d');
+    if (genderChart) genderChart.destroy();
+    genderChart = new Chart(ctx, {
+      type: 'doughnut',
+      data: { labels: ['Male','Female'], datasets: [{ data: [m,f], backgroundColor: ['#378ADD','#D4537E'], borderWidth: 0 }] },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { font: { size: 12 }, color: '#666', boxWidth: 12 } } } }
+    });
+  }
+
+  function renderAges(ageTotals) {
+    const max = Math.max(...Object.values(ageTotals), 1);
+    const wrap = document.getElementById('age-bars');
+    wrap.innerHTML = '';
+    ageKeys.forEach(k => {
+      const v = ageTotals[k]||0;
+      const pct = Math.round(v/max*100);
+      const row = document.createElement('div');
+      row.className = 'age-row';
+      row.innerHTML = `<span class="age-label">${k}</span><div class="bar-wrap"><div class="bar-m" style="width:${pct}%"></div></div><span class="age-count">${v}</span>`;
+      wrap.appendChild(row);
+    });
+  }
+
+  window.exportCSV = function() {
+    const data = filtered();
+    if (!data.length) return;
+    const headers = ['Timestamp','Session','Observer','Total','Total Male','Total Female',...ageKeys.map(k=>'M '+k),...ageKeys.map(k=>'F '+k)];
+    const rows = data.map(d => [d.timestamp||'',d.session||'',d.observer||'',d.total||0,d.total_male||0,d.total_female||0,...ageKeys.map(k=>(d.male&&d.male[k])||0),...ageKeys.map(k=>(d.female&&d.female[k])||0)]);
+    const csv = [headers,...rows].map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+    const blob = new Blob(['\uFEFF'+csv], {type:'text/csv;charset=utf-8;'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `gathering-snapshot-${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+  }
+
+  function fmt(ts) {
+    if (!ts) return '—';
+    const d = new Date(ts);
+    return d.toLocaleDateString('da-DK', {month:'short',day:'numeric'}) + ' ' + d.toLocaleTimeString('da-DK', {hour:'2-digit',minute:'2-digit'});
+  }
+
+  document.getElementById('session-filter').onchange = render;
+  document.getElementById('range-filter').onchange = render;
+</script>
+</body>
+</html>
